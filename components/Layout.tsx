@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, Outlet } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
-import { FiShield, FiUpload, FiGrid, FiLogOut, FiSun, FiMoon, FiMenu, FiX } from 'react-icons/fi';
+import { FiUpload, FiGrid, FiLogOut, FiSun, FiMoon, FiMenu, FiX } from 'react-icons/fi';
 import NotificationBell from './NotificationBell';
+import logoSvg from '../assets/logo.svg';
 
 export default function Layout() {
   const [user, setUser] = useState<User | null>(null);
@@ -51,10 +52,8 @@ export default function Layout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-all duration-200">
-                <FiShield className="w-4 h-4 text-accent" />
-              </div>
+            <Link to={user ? '/dashboard' : '/'} className="flex items-center gap-2.5 group">
+              <img src={logoSvg} alt="EnigmaShare" className="w-8 h-8" />
               <span className="font-heading text-lg font-semibold tracking-tight">EnigmaShare</span>
             </Link>
 
@@ -179,12 +178,8 @@ export default function Layout() {
       <footer className="border-t border-border py-10 mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
-                <FiShield className="w-3.5 h-3.5 text-accent" />
-              </div>
+              <img src={logoSvg} alt="EnigmaShare" className="w-7 h-7" />
               <span className="font-heading text-sm font-semibold">EnigmaShare</span>
-            </div>
             <p className="text-xs text-foreground/40 text-center max-w-md">
               End-to-end encrypted file sharing — zero-knowledge, total privacy.
             </p>

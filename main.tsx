@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import logoSvg from './assets/logo.svg';
 
 // Filter out Vite HMR WebSocket connection errors (harmless in proxy environments)
 const originalError = console.error;
@@ -15,6 +16,14 @@ console.error = function (...args) {
   originalError.apply(console, args);
 };
 
+// Set favicon
+const link = document.querySelector('link[rel="icon"]') || document.createElement('link');
+if (link instanceof HTMLLinkElement) {
+  link.rel = 'icon';
+  link.type = 'image/svg+xml';
+  link.href = logoSvg;
+  document.head.appendChild(link);
+}
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

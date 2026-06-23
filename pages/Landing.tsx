@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { FiShield, FiLock, FiClock, FiDownload, FiArrowRight, FiGlobe } from 'react-icons/fi';
-
 const features = [
   {
     icon: FiLock,
@@ -48,6 +49,14 @@ const steps = [
 ];
 
 export default function Landing() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) navigate('/dashboard', { replace: true });
+    });
+  }, [navigate]);
+
   return (
     <div>
       {/* Hero Section */}
