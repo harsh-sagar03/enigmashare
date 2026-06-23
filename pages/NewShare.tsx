@@ -180,8 +180,6 @@ export default function NewShare() {
           downloadLimit,
           // Only send password if in public link mode with password enabled
           password: mode === 'link' && passwordEnabled && password ? password : null,
-          // Only send recipients if in user mode
-          recipientIds: mode === 'user' ? recipients.map((r) => r.id) : [],
         },
       });
 
@@ -213,7 +211,12 @@ export default function NewShare() {
       // 6. Confirm upload
       setStatusMessage('Finalizing...');
       await supabase.functions.invoke('confirm-upload', {
-        body: { fileId: uploadData.fileId },
+        body: {
+          fileId: uploadData.fileId,
+          recipientIds: mode === 'user' ? recipients.map((r) => r.id) : [],
+          originalName,
+          fileSize: encryptedBlob.size,
+        },
       });
       setProgress(100);
 
