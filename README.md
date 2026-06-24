@@ -2,7 +2,7 @@
 
 # EnigmaShare
 
-### Privacy-First Secure File Sharing Platform
+### End-to-End Encrypted Secure File Sharing Platform
 
 Share files securely through encrypted links or direct recipient sharing with client-side encryption, download controls, and zero-knowledge storage.
 
