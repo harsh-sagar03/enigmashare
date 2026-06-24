@@ -39,7 +39,7 @@ The result is a modern, privacy-focused file-sharing experience built with React
 
 ## Key Features
 
-### 🔒 Client-Side Encryption
+### Client-Side Encryption
 
 Every file is encrypted locally using **AES-256-GCM** before upload.
 
@@ -50,7 +50,7 @@ Every file is encrypted locally using **AES-256-GCM** before upload.
 
 ---
 
-### 🔗 Secure Link Sharing
+### Secure Link Sharing
 
 Generate secure shareable links with configurable controls.
 
@@ -64,7 +64,7 @@ Features include:
 
 ---
 
-### 👥 Direct Recipient Sharing
+### Direct Recipient Sharing
 
 Share files directly with registered users.
 
@@ -78,7 +78,7 @@ Capabilities:
 
 ---
 
-### 📊 Activity Dashboard
+### Activity Dashboard
 
 Manage all sharing activity from a centralized dashboard.
 
@@ -93,7 +93,7 @@ Track:
 
 ---
 
-### 🔔 Notification System
+### Notification System
 
 Built-in notifications for important sharing events.
 
