@@ -27,6 +27,8 @@ export default function Dashboard() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [downloadingShare, setDownloadingShare] = useState<RecipientShareWithDetails | null>(null);
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
+  const [recipientsMap, setRecipientsMap] = useState<Record<string, RecipientShareWithDetails[]>>({});
+  const [loadingRecipients, setLoadingRecipients] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -99,6 +101,40 @@ export default function Dashboard() {
     }));
 
     setIncomingShares(merged as unknown as RecipientShareWithDetails[]);
+  };
+
+  const fetchRecipients = async (fileId: string) => {
+    setLoadingRecipients(prev => ({ ...prev, [fileId]: true }));
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data: shares, error } = await supabase
+      .from('recipient_shares')
+      .select('*')
+      .eq('file_id', fileId)
+      .order('shared_at', { ascending: false });
+
+    if (error || !shares) {
+      setLoadingRecipients(prev => ({ ...prev, [fileId]: false }));
+      return;
+    }
+
+    const recipientIds = [...new Set(shares.map(s => s.recipient_id))];
+    const { data: recipients } = await supabase
+      .from('profiles')
+      .select('id, username, display_name')
+      .in('id', recipientIds.length > 0 ? recipientIds : ['00000000-0000-0000-0000-000000000000']);
+
+    const recipientMap = new Map((recipients || []).map(r => [r.id, r]));
+
+    const merged = shares.map(share => ({
+      ...share,
+      recipient: recipientMap.get(share.recipient_id) || null,
+    }));
+
+    setRecipientsMap(prev => ({ ...prev, [fileId]: merged as RecipientShareWithDetails[] }));
+    setLoadingRecipients(prev => ({ ...prev, [fileId]: false }));
   };
 
   const handleCopyLink = async (fileId: string) => {
@@ -200,22 +236,20 @@ export default function Dashboard() {
   };
 
   const getModeBadge = (file: SharedFile) => {
-    const hasRecipients = incomingShares.some(s => s.file_id === file.id);
-    // Check if this file has recipient_shares records
-    // For now, a simple heuristic: if password_hash is set, it's link mode
-    if (file.password_hash) {
-      return (
-        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-          <FiLink2 className="w-2.5 h-2.5" /> Link
-        </span>
-      );
-    }
+  if ((file as any).share_mode === 'link') {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20">
-        <FiUsers className="w-2.5 h-2.5" /> Direct
+      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+        <FiLink2 className="w-2.5 h-2.5" /> Link
       </span>
     );
-  };
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20">
+      <FiUsers className="w-2.5 h-2.5" /> Direct
+    </span>
+  );
+};
 
   const unreadCount = incomingShares.filter(s => !s.first_accessed_at && s.access_status === 'active').length;
   if (loading && tab === 'outgoing' && files.length === 0) {
@@ -328,29 +362,41 @@ export default function Dashboard() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {!file.password_hash && (
-                          <button
-                            onClick={() => setExpandedFile(expandedFile === file.id ? null : file.id)}
+                        {(file as any).share_mode === 'user' ? (
+                            <button
+                            onClick={() => {
+                              if (expandedFile === file.id) {
+                                setExpandedFile(null);
+                              } else {
+                                setExpandedFile(file.id);
+                                if (!recipientsMap[file.id]) fetchRecipients(file.id);
+                              }
+                            }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-foreground/50 hover:text-foreground hover:bg-muted transition-all duration-200 cursor-pointer"
                             title="View recipients"
-                          >
+                            >
                             <FiUsers className="w-3.5 h-3.5" />
                             Recipients
-                          </button>
-                        )}
-                        {file.password_hash && (
-                          <button
-                            onClick={() => handleCopyLink(file.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-foreground/50 hover:text-foreground hover:bg-muted transition-all duration-200 cursor-pointer"
-                            title="Copy share link"
-                          >
-                            {copiedId === file.id ? (
-                              <><FiCheck className="w-3.5 h-3.5 text-accent" /> Copied</>
+                            </button>
                             ) : (
-                              <><FiCopy className="w-3.5 h-3.5" /> Copy Link</>
-                            )}
-                          </button>
-                        )}
+  <button
+    onClick={() => handleCopyLink(file.id)}
+    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-foreground/50 hover:text-foreground hover:bg-muted transition-all duration-200 cursor-pointer"
+    title="Copy share link"
+  >
+    {copiedId === file.id ? (
+      <>
+        <FiCheck className="w-3.5 h-3.5 text-accent" />
+        Copied
+      </>
+    ) : (
+      <>
+        <FiCopy className="w-3.5 h-3.5" />
+        Copy Link
+      </>
+    )}
+  </button>
+)}
                         {userId === file.owner_id && !isExpired && file.status === 'active' && (
                           <button
                             onClick={() => handleDelete(file.id)}
@@ -370,6 +416,50 @@ export default function Dashboard() {
                           </button>
                         )}
                       </div>
+                      
+                      {/* Recipients panel */}
+                      {expandedFile === file.id && (file as any).share_mode === 'user' && (
+                        <div className="mt-4 pt-4 border-t border-border">
+                          <h4 className="text-sm font-medium text-foreground/70 mb-3">Recipients</h4>
+                          {loadingRecipients[file.id] ? (
+                            <div className="flex items-center justify-center py-8">
+                              <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          ) : !recipientsMap[file.id] || recipientsMap[file.id].length === 0 ? (
+                            <p className="text-sm text-foreground/40 py-4 text-center">No recipients found</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {recipientsMap[file.id].map((share) => (
+                                <div key={share.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                                      <FiUser className="w-4 h-4 text-accent" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium truncate">
+                                        {share.recipient?.display_name || 'Unknown'}
+                                      </p>
+                                      <p className="text-xs text-foreground/40">
+                                        @{share.recipient?.username || 'unknown'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0">
+                                    {getAccessStatusBadge(share)}
+                                    <span className="text-xs text-foreground/40 flex items-center gap-1">
+                                      <FiDownload className="w-3 h-3" />
+                                      {share.download_count}
+                                    </span>
+                                    <span className="text-[10px] text-foreground/30 whitespace-nowrap">
+                                      {new Date(share.shared_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

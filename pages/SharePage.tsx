@@ -47,7 +47,12 @@ export default function SharePage() {
         body: { fileId: id },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        // The Supabase Functions client stores parsed error body in `context`
+        const errorBody = error.context as Record<string, unknown> | undefined;
+        const detail = errorBody?.error || errorBody?.message || error.message || 'Unknown error';
+        throw new Error(detail);
+      }
 
       if (data.status !== 'active') {
         setErrorMessage(
@@ -128,19 +133,27 @@ export default function SharePage() {
       const { data, error } = await supabase.functions.invoke('request-download', {
         body: { fileId: id, password: storedPassword },
       });
-
       if (data && typeof data === 'object' && 'error' in data && (data as any).error) {
         throw new Error((data as any).error);
       }
       if (error) {
-        throw new Error(error.message);
+        // The Supabase Functions client stores parsed error body in `context`
+        const errorBody = error.context as Record<string, unknown> | undefined;
+        const detail = errorBody?.error || errorBody?.message || error.message || 'Download failed';
+        throw new Error(detail);
       }
 
       let encryptedBlob: Blob;
+      console.log('1. request-download response:', data);
       if (data.downloadUrl) {
+        console.log('2. data.downloadUrl:', data.downloadUrl);
+        console.log('3. before fetch(downloadUrl)');
         const response = await fetch(data.downloadUrl);
+        console.log('4. after fetch(downloadUrl)');
+        console.log('5. response.status:', response.status);
         if (!response.ok) throw new Error('Download failed');
         encryptedBlob = await response.blob();
+        console.log('6. encryptedBlob.size:', encryptedBlob.size);
       } else if (data.encryptedBase64) {
         const binaryStr = atob(data.encryptedBase64);
         const bytes = new Uint8Array(binaryStr.length);
@@ -155,13 +168,18 @@ export default function SharePage() {
       setPageState('decrypting');
 
       // Decrypt
+      console.log('7. before decryptBlob()');
       const decryptedBlob = await decryptBlob(encryptedBlob, decryptionKey);
+      console.log('8. after decryptBlob()');
+      console.log('9. decryptedBlob.size:', decryptedBlob.size);
 
       // Try to unzip
       let files: { name: string; blob: Blob }[] = [];
       let isZip = false;
       try {
+        console.log('10. before JSZip.loadAsync()');
         const zip = await JSZip.loadAsync(decryptedBlob);
+        console.log('11. after JSZip.loadAsync()');
         const promises: Promise<void>[] = [];
 
         zip.forEach((relativePath, zipEntry) => {
@@ -205,17 +223,13 @@ export default function SharePage() {
 
       if (err instanceof Error) {
         detailedMessage = err.message;
-        if (detailedMessage.includes('operation') || detailedMessage.includes('key') || detailedMessage.includes('decrypt')) {
+        if (detailedMessage.includes('operation') || detailedMessage.includes('key') || detailedMessage.includes('decrypt') || detailedMessage.includes('tag')) {
           detailedMessage = 'Invalid decryption key. Please check and try again.';
         }
       } else if (typeof err === 'object' && err !== null && 'context' in err) {
-        try {
-          const ctx = (err as any).context;
-          if (typeof ctx?.json === 'function') {
-            const parsed = await ctx.json();
-            detailedMessage = parsed.error || parsed.message || 'Download failed';
-          }
-        } catch { /* ignore */ }
+        // Supabase Functions client v2 — `context` is already the parsed response body
+        const ctx = (err as any).context as Record<string, unknown> | undefined;
+        detailedMessage = ctx?.error || ctx?.message || 'Download failed';
       }
 
       setErrorMessage(`Download failed: ${detailedMessage}`);

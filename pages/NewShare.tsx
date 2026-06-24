@@ -178,20 +178,19 @@ export default function NewShare() {
           fileSize: encryptedBlob.size,
           expiresAt,
           downloadLimit,
+          shareMode: mode,
           // Only send password if in public link mode with password enabled
           password: mode === 'link' && passwordEnabled && password ? password : null,
         },
       });
-
       if (uploadError) {
         console.error('request-upload invocation error:', uploadError);
-        let errorMessage = uploadError.message || 'Failed to create share';
-        try {
-          if (typeof uploadError.context?.json === 'function') {
-            const ctx = await uploadError.context.json();
-            errorMessage = ctx.error || ctx.message || errorMessage;
-          }
-        } catch {}
+        // The Supabase Functions client v2 stores the parsed error body in `context`
+        const errorBody = uploadError.context as Record<string, unknown> | undefined;
+        const detail = errorBody?.error || errorBody?.message || '';
+        const errorMessage = detail
+          ? `Failed to create share: ${detail}`
+          : 'Failed to create share. The server returned an error.';
         throw new Error(errorMessage);
       }
       setProgress(60);
