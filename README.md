@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔐 EnigmaShare
+# EnigmaShare
 
 ### Privacy-First Secure File Sharing Platform
 
